@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Promo Tracker MT - Impact Edition</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+    
+    <!-- Prop-types -->
+    <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
+    
+    <!-- Recharts -->
+    <script src="https://unpkg.com/recharts@2.10.0/umd/Recharts.js"></script>
+    
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        body { 
+            background-color: #fdfbf9; /* Very light warm gray */
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            color: #1e293b;
+            background-image: 
+                radial-gradient(at 10% 10%, rgba(232, 213, 196, 0.3) 0px, transparent 50%),
+                radial-gradient(at 90% 0%, rgba(91, 194, 135, 0.15) 0px, transparent 50%),
+                radial-gradient(at 50% 90%, rgba(0, 91, 226, 0.1) 0px, transparent 50%);
+        }
+
+        /* Glassmorphism Utilities */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+        }
+        
+        .glass-card-beige {
+            background: linear-gradient(135deg, rgba(232, 213, 196, 0.8) 0%, rgba(255, 255, 255, 0.6) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+        
+        .glass-card-blue {
+            background: linear-gradient(135deg, rgba(0, 91, 226, 0.9) 0%, rgba(60, 130, 246, 0.85) 100%);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .glass-card-green {
+            background: linear-gradient(135deg, rgba(91, 194, 135, 0.85) 0%, rgba(134, 239, 172, 0.7) 100%);
+            color: white; 
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .glass-card-green h2, .glass-card-green p { color: #064e3b; } 
+
+        .glass-card-navy {
+            background: linear-gradient(135deg, #001F54 0%, #1e3a8a 100%);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Upload Button Style */
+        .upload-btn {
+            background: rgba(255, 255, 255, 0.4);
+            border: 1px dashed #005BE2;
+            color: #005BE2;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(4px);
+        }
+        .upload-btn:hover {
+            background: rgba(0, 91, 226, 0.1);
+            border-color: #001F54;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 91, 226, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useMemo, useEffect, useRef } = React;
+        const { 
+            BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
+            PieChart, Pie, Cell, AreaChart, Area, LabelList, ReferenceLine, ComposedChart, Line 
+        } = window.Recharts;
+
+        // --- THEME COLORS ---
+        const THEME = {
+            blueBright: '#005BE2',
+            greenMint: '#5BC287',
+            beigeWarm: '#E8D5C4',
+            navyDeep: '#001F54',
+            chartRed: '#E11D48',
+            chartGreen: '#5BC287', 
+            chartLine: '#0ea5e9', // Bright Cyan for Volume Line
+            white: '#ffffff',
+            textDark: '#1e293b',
+            textLight: '#94a3b8',
+            grid: '#e2e8f0'
+        };
+
+        // --- ICONS ---
+        const IconWrapper = ({ children, className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                {children}
+            </svg>
+        );
+
+        const Sparkle = ({ className }) => (
+            <svg viewBox="0 0 24 24" fill="none" className={className} xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 0L14.5 9.5L24 12L14.5 14.5L12 24L9.5 14.5L0 12L9.5 9.5L12 0Z" fill="currentColor" opacity="0.6"/>
+            </svg>
+        );
+        
+        const Sunburst = ({ className }) => (
+            <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="2" className={className}>
+                <line x1="50" y1="50" x2="50" y2="10" />
+                <line x1="50" y1="50" x2="80" y2="20" />
+                <line x1="50" y1="50" x2="90" y2="50" />
+                <line x1="50" y1="50" x2="80" y2="80" />
+                <line x1="50" y1="50" x2="50" y2="90" />
+                <line x1="50" y1="50" x2="20" y2="80" />
+                <line x1="50" y1="50" x2="10" y2="50" />
+                <line x1="50" y1="50" x2="20" y2="20" />
+            </svg>
+        );
+
+        const FilterIcon = (props) => <IconWrapper {...props}><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></IconWrapper>;
+        const CalendarIcon = (props) => <IconWrapper {...props}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></IconWrapper>;
+        const LayersIcon = (props) => <IconWrapper {...props}><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></IconWrapper>;
+        const TrendingUpIcon = (props) => <IconWrapper {...props}><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></IconWrapper>;
+        const TrendingDownIcon = (props) => <IconWrapper {...props}><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline><polyline points="17 18 23 18 23 12"></polyline></IconWrapper>;
+        const CreditCardIcon = (props) => <IconWrapper {...props}><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></IconWrapper>;
+        const PackageIcon = (props) => <IconWrapper {...props}><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"></line><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></IconWrapper>;
+        const PieIcon = (props) => <IconWrapper {...props}><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></IconWrapper>;
+        const TagIcon = (props) => <IconWrapper {...props}><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></IconWrapper>;
+        const UploadIcon = (props) => <IconWrapper {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></IconWrapper>;
+
+        // --- SAMPLE DATA ---
+        const RAW_DATA_TEMPLATE = `Actual Year,Actual Month,Accounts,Product Category,Brand,F. Short Name,Promo,Sum of Dz,Sales
+2025,Jan,Swapno,Body Wash,Absolute,Absolute 250ml,50 Tk off,17.33,1.21
+2025,Jan,Swapno,Body Wash,Absolute,Absolute 750ml,100 Tk off,11.83,2.16
+2025,Jan,Swapno,Body Wash,LO,LO 250ml,50 Tk off,9.33,0.66
+2025,Jan,Swapno,Toothbrush,Sensitive,Sensitive,(blank),273.00,3.44
+2025,Feb,Swapno,Body Wash,Absolute,Absolute 250ml,50 Tk off,23.92,1.46
+2025,Feb,Swapno,Toothbrush,Sensitive,Sensitive,(blank),187.67,2.22`;
+
+        // --- UPDATED PARSER ---
+        const parseCSV = (csvText) => {
+            const lines = csvText.trim().split('\n');
+            if (lines.length < 2) return [];
+
+            const splitCSVRow = (row) => {
+                const result = [];
+                let current = '';
+                let inQuote = false;
+                for (let i = 0; i < row.length; i++) {
+                    const char = row[i];
+                    if (char === '"') {
+                        if (i + 1 < row.length && row[i + 1] === '"') {
+                            current += '"';
+                            i++;
+                        } else {
+                            inQuote = !inQuote;
+                        }
+                    } else if (char === ',' && !inQuote) {
+                        result.push(current.trim());
+                        current = '';
+                    } else {
+                        current += char;
+                    }
+                }
+                result.push(current.trim());
+                return result;
+            };
+
+            const headers = splitCSVRow(lines[0]);
+            const data = [];
+            const monthMap = { 'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6, 'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12 };
+
+            const idxYear = headers.findIndex(h => h.toLowerCase().includes('year'));
+            const idxMonth = headers.findIndex(h => h.toLowerCase().includes('month'));
+            const idxAccount = headers.findIndex(h => h.toLowerCase().includes('account'));
+            const idxCategory = headers.findIndex(h => h.toLowerCase().includes('category'));
+            const idxBrand = headers.findIndex(h => h.toLowerCase().includes('brand'));
+            const idxItem = headers.findIndex(h => h.toLowerCase().includes('short name') || h.toLowerCase().includes('item'));
+            const idxPromo = headers.findIndex(h => h.toLowerCase().includes('promo'));
+            const idxQty = headers.findIndex(h => h.toLowerCase().includes('qty') || h.toLowerCase().includes('dz') || h.toLowerCase().includes('sum of dz'));
+            const idxSales = headers.findIndex(h => h.toLowerCase().includes('sales'));
+
+            for (let i = 1; i < lines.length; i++) {
+                if (!lines[i].trim()) continue;
+                const cleanRow = splitCSVRow(lines[i]);
+                if (cleanRow.length < headers.length - 2) continue; 
+
+                const year = parseInt(cleanRow[idxYear]);
+                const monthStr = cleanRow[idxMonth];
+                const monthNum = monthMap[monthStr] || 0;
+                const dateKey = `${year}-${String(monthNum).padStart(2, '0')}`;
+                const dateDisplay = `${monthStr}-${String(year).slice(2)}`;
+                
+                const parseNum = (val) => {
+                    if (!val || val === '-') return 0;
+                    const cleanVal = String(val).replace(/,/g, '');
+                    return parseFloat(cleanVal) || 0;
+                };
+
+                data.push({
+                    year,
+                    month: monthStr,
+                    dateKey,
+                    dateDisplay,
+                    account: idxAccount > -1 ? cleanRow[idxAccount] : 'N/A',
+                    category: idxCategory > -1 ? cleanRow[idxCategory] : 'N/A',
+                    brand: idxBrand > -1 ? cleanRow[idxBrand] : 'N/A',
+                    item: idxItem > -1 ? cleanRow[idxItem] : 'N/A',
+                    promo: (idxPromo > -1 && (cleanRow[idxPromo] === '(blank)' || !cleanRow[idxPromo] || cleanRow[idxPromo].trim() === '')) ? 'Non-Promo' : cleanRow[idxPromo],
+                    isPromo: (idxPromo > -1 && cleanRow[idxPromo] !== '(blank)' && cleanRow[idxPromo] && cleanRow[idxPromo].trim() !== ''),
+                    saleQty: parseNum(cleanRow[idxQty]),
+                    salesValue: parseNum(cleanRow[idxSales])
+                });
+            }
+            return data;
+        };
+
+        // --- COMPONENTS ---
+        const DashboardCard = ({ title, children, className = "", icon: Icon }) => (
+            <div className={`glass-panel rounded-3xl flex flex-col overflow-hidden transition-all duration-300 hover:shadow-2xl ${className}`}>
+                <div className="px-8 py-6 flex justify-between items-center border-b border-white/50">
+                    <h3 className="text-slate-800 font-bold text-lg tracking-wide flex items-center gap-3">
+                        {Icon && <div className="p-2 bg-indigo-50/50 rounded-xl text-[#005BE2]"><Icon className="h-5 w-5" /></div>}
+                        {title}
+                    </h3>
+                    <Sparkle className="w-6 h-6 text-[#E8D5C4]" />
+                </div>
+                <div className="p-8 pt-4 flex-1 w-full h-full min-h-[320px]">{children}</div>
+            </div>
+        );
+
+        const StatCard = ({ title, value, subtext, trend, icon: Icon, type }) => {
+            let cardClass = "glass-card-blue"; 
+            let iconBg = "bg-white/20";
+            if (type === 'sales') cardClass = "glass-card-blue";
+            if (type === 'volume') cardClass = "glass-card-green";
+            if (type === 'growth') cardClass = "glass-card-beige";
+            if (type === 'active') cardClass = "glass-card-navy";
+            const textColor = type === 'growth' ? 'text-slate-800' : 'text-white';
+            const subTextColor = type === 'growth' ? 'text-slate-600' : 'text-white/80';
+            const TrendIcon = trend === 'up' ? TrendingUpIcon : trend === 'down' ? TrendingDownIcon : LayersIcon;
+
+            return (
+                <div className={`${cardClass} p-6 rounded-3xl flex flex-col justify-between hover:scale-[1.03] transition-transform duration-300 group shadow-lg relative overflow-hidden`}>
+                    <Sunburst className="absolute -right-4 -top-4 w-24 h-24 opacity-20 pointer-events-none" />
+                    <div className="flex justify-between items-start relative z-10">
+                        <div>
+                            <p className={`text-xs font-bold uppercase tracking-wider mb-2 ${subTextColor}`}>{title}</p>
+                            <h2 className={`text-4xl font-black tracking-tight ${textColor}`}>{value}</h2>
+                        </div>
+                        <div className={`p-3 rounded-2xl backdrop-blur-md ${iconBg} shadow-inner`}><Icon className={`h-6 w-6 ${textColor}`} /></div>
+                    </div>
+                    {subtext && <div className={`flex items-center mt-4 text-xs font-bold px-3 py-1.5 rounded-full w-fit bg-white/20 backdrop-blur-md ${textColor}`}><TrendIcon className="h-3 w-3 mr-1.5" />{subtext}</div>}
+                </div>
+            );
+        };
+
+        const FilterPill = ({ label, value, onChange, options }) => (
+            <div className="flex flex-col">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1">{label}</label>
+                <div className="relative group">
+                    <select value={value} onChange={(e) => onChange(e.target.value)} className="appearance-none w-full bg-white/60 backdrop-blur-sm border border-white text-slate-700 text-sm rounded-2xl focus:ring-2 focus:ring-[#005BE2] block p-3.5 pr-10 font-semibold cursor-pointer shadow-sm transition-all hover:shadow-md hover:bg-white">
+                        <option value="All">All {label}s</option>
+                        {options.map((opt, idx) => <option key={idx} value={opt}>{opt}</option>)}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-[#005BE2]"><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7"></path></svg></div>
+                </div>
+            </div>
+        );
+
+        const MultiSelectPill = ({ label, options, selectedValues, onChange }) => {
+            const [isOpen, setIsOpen] = useState(false);
+            const containerRef = useRef(null);
+            useEffect(() => {
+                const handleClickOutside = (event) => { if (containerRef.current && !containerRef.current.contains(event.target)) setIsOpen(false); };
+                document.addEventListener("mousedown", handleClickOutside);
+                return () => document.removeEventListener("mousedown", handleClickOutside);
+            }, []);
+            const toggleOption = (option) => {
+                const newValues = selectedValues.includes(option) ? selectedValues.filter(v => v !== option) : [...selectedValues, option];
+                onChange(newValues);
+            };
+            return (
+                <div className="flex flex-col" ref={containerRef}>
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1">{label}</label>
+                    <div className="relative">
+                        <button onClick={() => setIsOpen(!isOpen)} className="w-full bg-white/60 backdrop-blur-sm border border-white text-slate-700 text-sm rounded-2xl focus:ring-2 focus:ring-[#005BE2] block p-3.5 pr-10 font-semibold text-left shadow-sm transition-all hover:shadow-md hover:bg-white truncate">{selectedValues.length === 0 ? `All ${label}s` : `${selectedValues.length} Selected`}</button>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-[#005BE2]"><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7"></path></svg></div>
+                        {isOpen && (
+                            <div className="absolute z-50 mt-2 w-full bg-white rounded-xl shadow-xl border border-slate-100 max-h-60 overflow-auto p-2">
+                                <div onClick={() => onChange([])} className={`cursor-pointer p-2 rounded-lg text-sm font-medium mb-1 ${selectedValues.length === 0 ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600 hover:bg-slate-50'}`}>All {label}s</div>
+                                {options.map(opt => <div key={opt} onClick={() => toggleOption(opt)} className={`cursor-pointer p-2 rounded-lg text-sm font-medium flex items-center justify-between ${selectedValues.includes(opt) ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600 hover:bg-slate-50'}`}><span>{opt}</span>{selectedValues.includes(opt) && <svg className="w-4 h-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg>}</div>)}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const HeaderYearFilter = ({ options, selectedYear, onChange }) => {
+            return (
+                <div className="glass-panel px-4 py-2 rounded-2xl flex items-center gap-3 text-sm font-bold text-slate-600 relative min-w-[140px]">
+                    <CalendarIcon className="h-5 w-5 text-[#005BE2]" />
+                    <span className="whitespace-nowrap text-slate-500">Year:</span>
+                    <select 
+                        value={selectedYear} 
+                        onChange={(e) => onChange(e.target.value)}
+                        className="bg-transparent border-none focus:ring-0 text-[#005BE2] font-bold cursor-pointer outline-none appearance-none w-full"
+                    >
+                        {options.map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
+                     <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[#005BE2]">
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                </div>
+            );
+        };
+
+        const CustomTooltip = ({ active, payload, label }) => {
+            if (active && payload && payload.length) {
+                return (
+                    <div className="bg-white/90 backdrop-blur-xl p-4 rounded-2xl border border-white shadow-2xl">
+                        {label && <p className="text-xs font-bold text-slate-400 mb-3 uppercase tracking-wider border-b border-slate-100 pb-2">{label}</p>}
+                        {payload.map((entry, index) => (
+                            <div key={index} className="flex items-center justify-between gap-6 text-sm mb-2 last:mb-0">
+                                <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full shadow-sm" style={{ background: entry.color }}></div><span className="text-slate-600 font-bold">{entry.name}</span></div>
+                                <span className="font-extrabold font-mono text-slate-800 text-base">
+                                    {typeof entry.value === 'number' 
+                                        ? entry.value.toLocaleString(undefined, {
+                                            maximumFractionDigits: (entry.name.includes('Volume') || entry.name.includes('Dz')) ? 2 : 1
+                                        }) 
+                                        : entry.value}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                );
+            }
+            return null;
+        };
+
+        // --- MAIN DASHBOARD ---
+        function Dashboard() {
+            const [rawDataState, setRawDataState] = useState(RAW_DATA_TEMPLATE);
+            const [data, setData] = useState([]);
+            // Added 'year' to filters state
+            const [filters, setFilters] = useState({ year: 'All', account: [], category: [], promo: [], brand: [], date: [] });
+            const fileInputRef = useRef(null);
+
+            useEffect(() => { setData(parseCSV(rawDataState)); }, [rawDataState]);
+
+            const handleFileUpload = (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => setRawDataState(e.target.result);
+                reader.readAsText(file);
+            };
+
+            const handleFilterChange = (key, value) => {
+                setFilters(prev => {
+                    const newFilters = { ...prev, [key]: value };
+                    // Reset month if year changes to avoid invalid combinations
+                    if (key === 'year') {
+                        newFilters.date = [];
+                    }
+                    if (key === 'category') { newFilters.brand = []; newFilters.promo = []; }
+                    else if (key === 'brand') { newFilters.promo = []; }
+                    return newFilters;
+                });
+            };
+
+            // Extract unique Years for the Header Filter
+            const yearOptions = useMemo(() => ['All', ...new Set(data.map(d => d.year))].sort(), [data]);
+
+            // Cascading Filter Logic
+            // 1. Filter by Year & Account
+            const dataForCategory = useMemo(() => data.filter(item => 
+                (filters.year === 'All' || item.year.toString() === filters.year.toString()) &&
+                (filters.account.length === 0 || filters.account.includes(item.account)) && 
+                (filters.date.length === 0 || filters.date.includes(item.dateDisplay))
+            ), [data, filters.year, filters.account, filters.date]);
+
+            const dataForBrand = useMemo(() => dataForCategory.filter(item => (filters.category.length === 0 || filters.category.includes(item.category))), [dataForCategory, filters.category]);
+            const dataForPromo = useMemo(() => dataForBrand.filter(item => (filters.brand.length === 0 || filters.brand.includes(item.brand))), [dataForBrand, filters.brand]);
+            const filteredData = useMemo(() => dataForPromo.filter(item => (filters.promo.length === 0 || (filters.promo.includes('Non-Promo') ? !item.isPromo : filters.promo.includes(item.promo)))), [dataForPromo, filters.promo]);
+
+            // Aggregations
+            const monthlyData = useMemo(() => {
+                const grouped = {};
+                filteredData.forEach(d => {
+                    if (!grouped[d.dateKey]) grouped[d.dateKey] = { date: d.dateDisplay, key: d.dateKey, sales: 0, volume: 0 };
+                    grouped[d.dateKey].sales += d.salesValue;
+                    grouped[d.dateKey].volume += d.saleQty;
+                });
+                const sorted = Object.values(grouped).sort((a, b) => a.key.localeCompare(b.key));
+                if (sorted.length > 0) {
+                    sorted[0].growth = 0;
+                    for (let i = 1; i < sorted.length; i++) {
+                        const prev = sorted[i-1].volume;
+                        const curr = sorted[i].volume;
+                        sorted[i].growth = prev === 0 ? 0 : ((curr - prev) / prev) * 100;
+                    }
+                }
+                return sorted;
+            }, [filteredData]);
+
+            const promoMixData = useMemo(() => {
+                const grouped = { 'Promo': 0, 'Non-Promo': 0 };
+                filteredData.forEach(d => { if (d.isPromo) grouped['Promo'] += d.saleQty; else grouped['Non-Promo'] += d.saleQty; });
+                return [{ name: 'Promo', value: grouped['Promo'], fill: THEME.blueBright }, { name: 'Non-Promo', value: grouped['Non-Promo'], fill: THEME.beigeWarm }];
+            }, [filteredData]);
+
+            const offerData = useMemo(() => {
+                const grouped = {};
+                filteredData.forEach(d => { if (!grouped[d.promo]) grouped[d.promo] = 0; grouped[d.promo] += d.saleQty; });
+                return Object.entries(grouped).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 8);
+            }, [filteredData]);
+
+            const totalSales = filteredData.reduce((acc, curr) => acc + curr.salesValue, 0).toFixed(1);
+            const totalVolNum = filteredData.reduce((acc, curr) => acc + curr.saleQty, 0);
+            const totalVol = totalVolNum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const activePromoCount = new Set(filteredData.filter(d => d.isPromo).map(d => d.promo)).size;
+            const lastMonthGrowth = monthlyData.length > 1 ? monthlyData[monthlyData.length-1].growth.toFixed(1) : 0;
+            const growthTrend = parseFloat(lastMonthGrowth) >= 0 ? 'up' : 'down';
+
+            // Option Lists
+            const getUniqueValues = (dataset, key) => ['All', ...new Set(dataset.map(d => d[key]))].filter(Boolean);
+            const accountOptions = getUniqueValues(data, 'account').filter(v => v !== 'All');
+            const categoryOptions = getUniqueValues(dataForCategory, 'category').filter(v => v !== 'All');
+            const brandOptions = getUniqueValues(dataForBrand, 'brand').filter(v => v !== 'All');
+            const promoOptions = [...new Set(dataForBrand.map(d => d.promo))].filter(v => v !== 'All');
+            
+            // Only show months relevant to the selected year
+            const dateOptions = [...new Set(
+                data.filter(d => filters.year === 'All' || d.year.toString() === filters.year.toString())
+                    .map(d => d.dateDisplay)
+            )].filter(v => v !== 'All');
+
+            return (
+                <div className="min-h-screen pb-16">
+                    <div className="max-w-[1400px] mx-auto px-6 pt-12">
+                        <div className="flex flex-col md:flex-row justify-between items-end mb-12">
+                            <div>
+                                <div className="flex items-center gap-3 mb-3"><div className="p-2 bg-white rounded-xl shadow-sm border border-slate-100"><LayersIcon className="h-6 w-6 text-[#005BE2]" /></div><span className="text-sm font-bold tracking-widest uppercase text-slate-500">Analytics Dashboard</span></div>
+                                <h1 className="text-5xl font-black tracking-tight text-[#001F54]">Promo Tracker <span className="text-[#005BE2]">MT</span></h1>
+                            </div>
+                            <div className="flex items-center gap-4 mt-4 md:mt-0">
+                                <div className="relative">
+                                    <input type="file" accept=".csv, .txt" onChange={handleFileUpload} className="hidden" id="csvUpload" ref={fileInputRef} />
+                                    <label htmlFor="csvUpload" className="flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-bold cursor-pointer upload-btn shadow-sm border border-[#005BE2]/30"><span className="text-[#005BE2]">📂 Upload CSV</span></label>
+                                </div>
+                                
+                                {/* Replaced Static "All Months" with Year Filter */}
+                                <HeaderYearFilter 
+                                    options={yearOptions} 
+                                    selectedYear={filters.year} 
+                                    onChange={(val) => handleFilterChange('year', val)} 
+                                />
+                            </div>
+                        </div>
+
+                        <div className="glass-panel p-6 rounded-3xl mb-10 flex flex-col lg:flex-row gap-8 items-center relative z-50">
+                            <div className="flex items-center gap-4 w-full lg:w-auto lg:border-r lg:border-slate-200 lg:pr-8 pb-4 lg:pb-0 border-b lg:border-b-0 border-slate-200"><div className="p-3 bg-[#005BE2]/10 rounded-2xl text-[#005BE2]"><FilterIcon className="h-6 w-6" /></div><span className="font-bold text-slate-700 text-lg">Filters</span></div>
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-5 w-full">
+                                <MultiSelectPill label="Account" selectedValues={filters.account} onChange={(v) => handleFilterChange('account', v)} options={accountOptions} />
+                                <MultiSelectPill label="Category" selectedValues={filters.category} onChange={(v) => handleFilterChange('category', v)} options={categoryOptions} />
+                                <MultiSelectPill label="Brand" selectedValues={filters.brand} onChange={(v) => handleFilterChange('brand', v)} options={brandOptions} />
+                                <MultiSelectPill label="Promo" selectedValues={filters.promo} onChange={(v) => handleFilterChange('promo', v)} options={promoOptions} />
+                                <MultiSelectPill label="Month" selectedValues={filters.date} onChange={(v) => handleFilterChange('date', v)} options={dateOptions} />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+                            <StatCard title="TOTAL OFFTAKE (LAC)" value={totalSales} icon={CreditCardIcon} type="sales" />
+                            <StatCard title="Total Volume (Dz)" value={totalVol} icon={PackageIcon} type="volume" />
+                            <StatCard title="MoM Growth" value={`${lastMonthGrowth}%`} subtext="Vs Prev Month" trend={growthTrend} icon={TrendingUpIcon} type="growth" />
+                            <StatCard title="Active Offers" value={activePromoCount} icon={TagIcon} type="active" />
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                            <DashboardCard title="Month-Wise Performance (Offtake & Volume)" icon={TrendingUpIcon}>
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <ComposedChart data={monthlyData} margin={{ top: 20, right: 20, bottom: 20, left: 10 }}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                                        <XAxis dataKey="date" scale="band" axisLine={false} tickLine={false} tick={{fill: THEME.navyDeep, fontSize: 12, fontWeight: 600}} dy={15} />
+                                        <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{fill: THEME.greenMint, fontSize: 12}} label={{ value: 'Volume', angle: -90, position: 'insideLeft', fill: THEME.greenMint, fontSize: 12, dx: 0 }} />
+                                        <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{fill: THEME.blueBright, fontSize: 12}} label={{ value: 'Offtake', angle: 90, position: 'insideRight', fill: THEME.blueBright, fontSize: 12, dx: 0 }} />
+                                        <Tooltip content={<CustomTooltip />} />
+                                        <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ top: -10 }} />
+                                        <Bar yAxisId="right" dataKey="sales" barSize={48} fill={THEME.blueBright} name="Offtake (Lakh)" radius={[12, 12, 12, 12]}><LabelList dataKey="sales" position="top" formatter={(val) => val.toFixed(1)} style={{ fill: THEME.blueBright, fontSize: 11, fontWeight: 'bold' }} /></Bar>
+                                        <Line yAxisId="left" type="monotone" dataKey="volume" stroke={THEME.greenMint} strokeWidth={4} name="Volume (Dz)" dot={{ r: 6, fill: '#fff', stroke: THEME.greenMint, strokeWidth: 3 }}><LabelList dataKey="volume" position="top" offset={25} formatter={(val) => val.toLocaleString(undefined, {maximumFractionDigits: 2})} style={{ fill: THEME.greenMint, fontSize: 11, fontWeight: 'bold' }} /></Line>
+                                    </ComposedChart>
+                                </ResponsiveContainer>
+                            </DashboardCard>
+                            <DashboardCard title="Volume by Promo/Non-Promo (Dz)" icon={TagIcon}>
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={offerData} layout="vertical" margin={{ left: 0, right: 70, top: 10 }}>
+                                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
+                                        <XAxis type="number" hide />
+                                        <YAxis dataKey="name" type="category" width={110} tick={{fontSize: 11, fill: THEME.textDark, fontWeight: 600}} />
+                                        <Tooltip content={<CustomTooltip />} cursor={{fill: '#f1f5f9'}} />
+                                        <Bar dataKey="value" radius={[0, 8, 8, 0]} name="Volume" barSize={24}><LabelList dataKey="value" position="right" formatter={(value) => { const percent = totalVolNum > 0 ? (value / totalVolNum * 100).toFixed(1) : 0; return `${value.toLocaleString(undefined, {maximumFractionDigits: 2})} (${percent}%)`; }} style={{ fill: THEME.navyDeep, fontSize: 12, fontWeight: 'bold' }} />
+                                            {offerData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.name === 'Non-Promo' ? THEME.beigeWarm : THEME.blueBright} />)}
+                                        </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </DashboardCard>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                            <DashboardCard title="Promo / Non-Promo Mix" icon={PieIcon} className="lg:col-span-1">
+                                <div className="relative h-full">
+                                    <ResponsiveContainer width="100%" height={300}>
+                                        <PieChart>
+                                            <Pie data={promoMixData} cx="50%" cy="50%" innerRadius={80} outerRadius={105} paddingAngle={4} dataKey="value" stroke="none" label={({ value, percent }) => `${value.toLocaleString(undefined, {maximumFractionDigits: 2})} (${(percent * 100).toFixed(1)}%)`} labelLine={true}>
+                                                {promoMixData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.fill} />)}
+                                            </Pie>
+                                            <Tooltip content={<CustomTooltip />} />
+                                            <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </DashboardCard>
+                            <DashboardCard title="Month-Wise Vol Growth % & Volume" icon={TrendingUpIcon} className="lg:col-span-2">
+                                <div className="flex flex-col h-full">
+                                    <div className="flex-1">
+                                        <ResponsiveContainer width="100%" height={260}>
+                                            <ComposedChart data={monthlyData} margin={{ top: 35, bottom: 5, left: 10, right: 10 }}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                                                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: THEME.navyDeep, fontSize: 12, fontWeight: 600}} dy={15} />
+                                                <YAxis hide /> 
+                                                <YAxis yAxisId="left" hide />
+                                                <YAxis yAxisId="right" orientation="right" hide domain={['auto', 'auto']} />
+                                                <Tooltip content={<CustomTooltip />} cursor={{fill: '#f1f5f9'}} />
+                                                <ReferenceLine yAxisId="left" y={0} stroke="#94a3b8" strokeWidth={2} />
+                                                <Bar yAxisId="left" dataKey="growth" name="Growth %" radius={[8, 8, 8, 8]}>
+                                                    {monthlyData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.growth >= 0 ? THEME.chartGreen : THEME.chartRed} />)}
+                                                    <LabelList dataKey="growth" position="inside" formatter={(val) => `${val.toFixed(1)}%`} style={{ fill: '#fff', fontSize: 12, fontWeight: 'bold', textShadow: '0px 1px 2px rgba(0,0,0,0.2)' }} />
+                                                </Bar>
+                                                <Line yAxisId="right" type="monotone" dataKey="volume" name="Volume" stroke={THEME.chartLine} strokeWidth={3} dot={{ r: 5, fill: '#fff', stroke: THEME.chartLine, strokeWidth: 2 }} activeDot={{ r: 7 }} opacity={1}>
+                                                    <LabelList dataKey="volume" position="top" offset={20} formatter={(val) => val.toLocaleString(undefined, {maximumFractionDigits: 2})} style={{ fill: THEME.chartLine, fontSize: 11, fontWeight: 'bold' }} />
+                                                </Line>
+                                            </ComposedChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                    <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-center gap-3">
+                                        <span className="text-xs text-slate-500 uppercase tracking-wider font-bold">Latest Growth Trend:</span>
+                                        <span className={`text-xl font-black ${parseFloat(lastMonthGrowth) >= 0 ? 'text-[#5BC287]' : 'text-rose-500'}`}>
+                                            {lastMonthGrowth}%
+                                        </span>
+                                    </div>
+                                </div>
+                            </DashboardCard>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<Dashboard />);
+    </script>
+</body>
+</html>
