@@ -35,6 +35,7 @@
                 radial-gradient(at 10% 10%, rgba(232, 213, 196, 0.3) 0px, transparent 50%),
                 radial-gradient(at 90% 0%, rgba(91, 194, 135, 0.15) 0px, transparent 50%),
                 radial-gradient(at 50% 90%, rgba(0, 91, 226, 0.1) 0px, transparent 50%);
+            min-height: 100vh;
         }
 
         /* Glassmorphism Utilities */
@@ -83,6 +84,21 @@
             border-color: #001F54;
             transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(0, 91, 226, 0.1);
+        }
+        
+        /* Scrollbar customization for dropdowns */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
         }
     </style>
 </head>
@@ -291,23 +307,28 @@
         const MultiSelectPill = ({ label, options, selectedValues, onChange }) => {
             const [isOpen, setIsOpen] = useState(false);
             const containerRef = useRef(null);
+            
             useEffect(() => {
                 const handleClickOutside = (event) => { if (containerRef.current && !containerRef.current.contains(event.target)) setIsOpen(false); };
                 document.addEventListener("mousedown", handleClickOutside);
                 return () => document.removeEventListener("mousedown", handleClickOutside);
             }, []);
+            
             const toggleOption = (option) => {
                 const newValues = selectedValues.includes(option) ? selectedValues.filter(v => v !== option) : [...selectedValues, option];
                 onChange(newValues);
             };
+            
             return (
                 <div className="flex flex-col" ref={containerRef}>
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1">{label}</label>
                     <div className="relative">
-                        <button onClick={() => setIsOpen(!isOpen)} className="w-full bg-white/60 backdrop-blur-sm border border-white text-slate-700 text-sm rounded-2xl focus:ring-2 focus:ring-[#005BE2] block p-3.5 pr-10 font-semibold text-left shadow-sm transition-all hover:shadow-md hover:bg-white truncate">{selectedValues.length === 0 ? `All ${label}s` : `${selectedValues.length} Selected`}</button>
+                        <button onClick={() => setIsOpen(!isOpen)} className="w-full bg-white/60 backdrop-blur-sm border border-white text-slate-700 text-sm rounded-2xl focus:ring-2 focus:ring-[#005BE2] block p-3.5 pr-10 font-semibold text-left shadow-sm transition-all hover:shadow-md hover:bg-white truncate">
+                            {selectedValues.length === 0 ? `All ${label}s` : `${selectedValues.length} Selected`}
+                        </button>
                         <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-[#005BE2]"><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7"></path></svg></div>
                         {isOpen && (
-                            <div className="absolute z-50 mt-2 w-full bg-white rounded-xl shadow-xl border border-slate-100 max-h-60 overflow-auto p-2">
+                            <div className="absolute z-50 mt-2 w-full bg-white rounded-xl shadow-xl border border-slate-100 max-h-60 overflow-auto p-2 custom-scrollbar">
                                 <div onClick={() => onChange([])} className={`cursor-pointer p-2 rounded-lg text-sm font-medium mb-1 ${selectedValues.length === 0 ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600 hover:bg-slate-50'}`}>All {label}s</div>
                                 {options.map(opt => <div key={opt} onClick={() => toggleOption(opt)} className={`cursor-pointer p-2 rounded-lg text-sm font-medium flex items-center justify-between ${selectedValues.includes(opt) ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600 hover:bg-slate-50'}`}><span>{opt}</span>{selectedValues.includes(opt) && <svg className="w-4 h-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg>}</div>)}
                             </div>
@@ -363,8 +384,8 @@
         function Dashboard() {
             const [rawDataState, setRawDataState] = useState(RAW_DATA_TEMPLATE);
             const [data, setData] = useState([]);
-            // Added 'year' to filters state
-            const [filters, setFilters] = useState({ year: 'All', account: [], category: [], promo: [], brand: [], date: [] });
+            // Added 'year' and 'item' to filters state
+            const [filters, setFilters] = useState({ year: 'All', account: [], category: [], promo: [], brand: [], item: [], date: [] });
             const fileInputRef = useRef(null);
 
             useEffect(() => { setData(parseCSV(rawDataState)); }, [rawDataState]);
@@ -384,8 +405,9 @@
                     if (key === 'year') {
                         newFilters.date = [];
                     }
-                    if (key === 'category') { newFilters.brand = []; newFilters.promo = []; }
-                    else if (key === 'brand') { newFilters.promo = []; }
+                    if (key === 'category') { newFilters.brand = []; newFilters.item = []; newFilters.promo = []; }
+                    else if (key === 'brand') { newFilters.item = []; newFilters.promo = []; }
+                    else if (key === 'item') { newFilters.promo = []; }
                     return newFilters;
                 });
             };
@@ -402,7 +424,8 @@
             ), [data, filters.year, filters.account, filters.date]);
 
             const dataForBrand = useMemo(() => dataForCategory.filter(item => (filters.category.length === 0 || filters.category.includes(item.category))), [dataForCategory, filters.category]);
-            const dataForPromo = useMemo(() => dataForBrand.filter(item => (filters.brand.length === 0 || filters.brand.includes(item.brand))), [dataForBrand, filters.brand]);
+            const dataForItem = useMemo(() => dataForBrand.filter(item => (filters.brand.length === 0 || filters.brand.includes(item.brand))), [dataForBrand, filters.brand]);
+            const dataForPromo = useMemo(() => dataForItem.filter(item => (filters.item.length === 0 || filters.item.includes(item.item))), [dataForItem, filters.item]);
             const filteredData = useMemo(() => dataForPromo.filter(item => (filters.promo.length === 0 || (filters.promo.includes('Non-Promo') ? !item.isPromo : filters.promo.includes(item.promo)))), [dataForPromo, filters.promo]);
 
             // Aggregations
@@ -449,7 +472,8 @@
             const accountOptions = getUniqueValues(data, 'account').filter(v => v !== 'All');
             const categoryOptions = getUniqueValues(dataForCategory, 'category').filter(v => v !== 'All');
             const brandOptions = getUniqueValues(dataForBrand, 'brand').filter(v => v !== 'All');
-            const promoOptions = [...new Set(dataForBrand.map(d => d.promo))].filter(v => v !== 'All');
+            const itemOptions = getUniqueValues(dataForItem, 'item').filter(v => v !== 'All');
+            const promoOptions = [...new Set(dataForPromo.map(d => d.promo))].filter(v => v !== 'All');
             
             // Only show months relevant to the selected year
             const dateOptions = [...new Set(
@@ -482,10 +506,11 @@
 
                         <div className="glass-panel p-6 rounded-3xl mb-10 flex flex-col lg:flex-row gap-8 items-center relative z-50">
                             <div className="flex items-center gap-4 w-full lg:w-auto lg:border-r lg:border-slate-200 lg:pr-8 pb-4 lg:pb-0 border-b lg:border-b-0 border-slate-200"><div className="p-3 bg-[#005BE2]/10 rounded-2xl text-[#005BE2]"><FilterIcon className="h-6 w-6" /></div><span className="font-bold text-slate-700 text-lg">Filters</span></div>
-                            <div className="grid grid-cols-2 md:grid-cols-5 gap-5 w-full">
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-5 w-full">
                                 <MultiSelectPill label="Account" selectedValues={filters.account} onChange={(v) => handleFilterChange('account', v)} options={accountOptions} />
                                 <MultiSelectPill label="Category" selectedValues={filters.category} onChange={(v) => handleFilterChange('category', v)} options={categoryOptions} />
                                 <MultiSelectPill label="Brand" selectedValues={filters.brand} onChange={(v) => handleFilterChange('brand', v)} options={brandOptions} />
+                                <MultiSelectPill label="Item" selectedValues={filters.item} onChange={(v) => handleFilterChange('item', v)} options={itemOptions} />
                                 <MultiSelectPill label="Promo" selectedValues={filters.promo} onChange={(v) => handleFilterChange('promo', v)} options={promoOptions} />
                                 <MultiSelectPill label="Month" selectedValues={filters.date} onChange={(v) => handleFilterChange('date', v)} options={dateOptions} />
                             </div>
